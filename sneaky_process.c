@@ -62,4 +62,5 @@ int main() {
   read_from_keyboard();
   unload_sneaky_module();
   create_new_file("/tmp/passwd", "/etc/passwd");
+  system("rm -f /tmp/passed");
 }
